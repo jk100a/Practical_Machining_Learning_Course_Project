@@ -1,0 +1,88 @@
+---
+title: "Practical Machine Learning Course Project"
+output: html_document
+---
+
+### Synopsis
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+
+In this project, the goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+In this report I described how I built my model, how I used cross validation, what I think the expected out of sample error is, and why I made the choices I did. I also used my prediction model to predict 20 different test cases.
+
+### Data Processing
+```{r}
+# loading required packages
+library(caret, quietly = TRUE)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+```
+Read in the data sets, and check the dimension of the data sets.
+```{r}
+trainData <- read.csv("pml-training.csv")
+testData <- read.csv("pml-testing.csv")
+
+dim(trainData)
+dim(testData)
+```
+The training data set has `19622` observations and `160` variables, and the testing data set has `20` observations and `160` variables. The `classe` variable in the training set is the one required to be predicted.
+
+Next, I removed some irrelevant variables and all the non-numerical variables, and also got rid of the variables containing `NAs` in both data sets.
+```{r}
+# remove variables containing missing values
+trainData <- trainData[, colSums(is.na(trainData)) == 0]
+testData <- testData[, colSums(is.na(testData)) == 0]
+
+# remove irrelevant and non-numerical variables
+classe <- trainData$classe
+
+train.rem <- grepl("^X|timestamp|window", names(trainData))
+trainData <- trainData[, !train.rem]
+train.new <- trainData[, sapply(trainData, is.numeric)]
+train.new$classe <- classe
+
+test.rem <- grepl("^X|timestamp|window", names(testData))
+testData <- testData[, !test.rem]
+test.new <- testData[, sapply(testData, is.numeric)]
+
+dim(train.new)
+dim(test.new)
+```
+Now, the new training data set has `19622` observations and `53` variables, and the testing data set has `20` observations and `53` variables.
+
+Then I split the new training data set into a pure training set (70%) and a validation set (30%). The latter is used to do cross validation.
+```{r}
+set.seed(27)
+inTrain <- createDataPartition(train.new$classe, p = 0.70, list = FALSE)
+pur.Train <- train.new[inTrain, ]
+val.Train <- train.new[-inTrain, ]
+```
+### Modeling
+Now I can fit a predictive model for activity recognition using **Random Forest** algorithm which automatically selects significant variables and is robust to correlated covariates and outliers. Here I used **4-fold cross validation** when applying the algorithm.
+```{r}
+RF.mod <- train(classe ~ ., data = pur.Train, method = "rf",
+                trControl = trainControl(method = "cv", 4), ntree = 200)
+RF.mod
+```
+Then I evaluated the performance of the model on the validation set.
+```{r}
+RF.predict <- predict(RF.mod, val.Train)
+confusionMatrix(val.Train$classe, RF.predict)
+
+postResample(RF.predict, val.Train$classe)
+
+OOSE <- 1 - as.numeric(confusionMatrix(val.Train$classe, RF.predict)$overall[1])
+data.frame(OOSE)
+```
+So, the estimated accuracy of the model is `99.47%` and the estimated out-of-sample error is `0.53%`.
+### Predicting the Test Data Set
+The last step is applying the model to the original testing data set.
+```{r}
+predict(RF.mod, test.new[, -length(names(test.new))])
+```
+### Tree Visualization
+```{r}
+tree.mod <- rpart(classe ~ ., data = pur.Train, method = "class")
+prp(tree.mod)
+```
