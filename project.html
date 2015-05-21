@@ -183,7 +183,11 @@ confusionMatrix(val.Train$classe, RF.predict)</code></pre>
 data.frame(OOSE)</code></pre>
 <pre><code>##          OOSE
 ## 1 0.006457094</code></pre>
-<p>So, the estimated accuracy of the model is <code>99.47%</code> and the estimated out-of-sample error is <code>0.53%</code>. ### Predicting the Test Data Set The last step is applying the model to the original testing data set.</p>
+<p>So, the estimated accuracy of the model is <code>99.47%</code> and the estimated out-of-sample error is <code>0.53%</code>.</p>
+</div>
+<div id="predicting-the-test-data-set" class="section level3">
+<h3>Predicting the Test Data Set</h3>
+<p>The last step is applying the model to the original testing data set.</p>
 <pre class="r"><code>predict(RF.mod, test.new[, -length(names(test.new))])</code></pre>
 <pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
 ## Levels: A B C D E</code></pre>
